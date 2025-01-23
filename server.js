@@ -58,6 +58,9 @@ app.post('/api/chat', async (req, res) => {
 
       // Send each chunk to the client
       res.write(`data: ${JSON.stringify({ response: content })}\n\n`);
+
+      // Add a small delay to simulate "slow typing"
+      await new Promise((resolve) => setTimeout(resolve, 20)); // Adjust delay as needed
     }
 
     // Add the bot's full response to the history
