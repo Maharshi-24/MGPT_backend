@@ -42,10 +42,13 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    // Simulate "thinking" delay before responding
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // 1-second delay
+
     // Call Groq API with streaming enabled
     const stream = await groq.chat.completions.create({
       messages: history,
-      model: 'llama3-8b-8192', // Use the correct model name
+      model: 'llama-3.3-70b-versatile', // Use the correct model name
       stream: true, // Enable streaming
     });
 
