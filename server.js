@@ -45,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
     // Call Groq API with streaming enabled
     const stream = await groq.chat.completions.create({
       messages: history,
-      model: 'llama-3.3-70b-versatile', // Use the correct model name
+      model: 'llama3-8b-8192', // Use the correct model name
       stream: true, // Enable streaming
     });
 
