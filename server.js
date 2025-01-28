@@ -4,78 +4,89 @@ import cors from 'cors';
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
-// Initialize Groq SDK
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-// Initialize Express app
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors({ origin: '*' }));
 app.use(bodyParser.json());
 
-// In-memory storage for conversation history
+// In-memory storage for conversation history and abort controllers
 const conversationHistory = new Map();
+const abortControllers = new Map(); // Store AbortController for each user
 
 // Chat endpoint with streaming
 app.post('/api/chat', async (req, res) => {
-  const userId = req.body.userId || 'defaultUser'; // Use a unique identifier for each user
+  const userId = req.body.userId || 'defaultUser';
   const userMessage = req.body.message;
 
-  // Initialize conversation history if it doesn't exist
   if (!conversationHistory.has(userId)) {
     conversationHistory.set(userId, []);
   }
 
   const history = conversationHistory.get(userId);
-
-  // Add the user's message to the history
   history.push({ role: 'user', content: userMessage });
 
+  const abortController = new AbortController();
+  abortControllers.set(userId, abortController);
+
   try {
-    // Set headers for streaming
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Simulate "thinking" delay before responding
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // 1-second delay
+    const stream = await groq.chat.completions.create(
+      {
+        messages: history,
+        model: 'llama3-8b-8192',
+        stream: true,
+      },
+      { signal: abortController.signal }
+    );
 
-    // Call Groq API with streaming enabled
-    const stream = await groq.chat.completions.create({
-      messages: history,
-      model: 'llama3-8b-8192', // Use the correct model name
-      stream: true, // Enable streaming
-    });
-
-    let botResponse = '';
-
-    // Stream the response to the client
     for await (const chunk of stream) {
+      if (abortController.signal.aborted) {
+        console.log('Streaming stopped by user');
+        break;
+      }
+
       const content = chunk.choices[0]?.delta?.content || '';
-      botResponse += content;
-
-      // Send each chunk to the client
       res.write(`data: ${JSON.stringify({ response: content })}\n\n`);
-
-      // Add a small delay to simulate "slow typing"
-      await new Promise((resolve) => setTimeout(resolve, 20)); // Adjust delay as needed
+      await new Promise((resolve) => setTimeout(resolve, 20)); // Simulate typing delay
     }
 
-    // Add the bot's full response to the history
-    history.push({ role: 'assistant', content: botResponse });
-
-    // End the stream
     res.end();
   } catch (error) {
-    console.error('Error calling Groq API:', error);
-    res.status(500).json({ error: 'Failed to get response from Groq API' });
+    if (error.name === 'AbortError') {
+      console.log('Stream aborted');
+      res.status(499).end(); // Custom abort status
+    } else {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  } finally {
+    abortControllers.delete(userId);
   }
 });
+
+
+
+// Endpoint to stop the response generation
+app.post('/api/stop', (req, res) => {
+  const userId = req.body.userId || 'defaultUser';
+
+  if (abortControllers.has(userId)) {
+    abortControllers.get(userId).abort(); // Abort the request
+    abortControllers.delete(userId); // Clean up
+    res.status(200).json({ message: 'Streaming stopped successfully' });
+  } else {
+    res.status(404).json({ error: 'No active streaming to stop' });
+  }
+});
+
 
 // Start the server
 app.listen(port, () => {
