@@ -18,6 +18,12 @@ app.use(bodyParser.json());
 const conversationHistory = new Map();
 const abortControllers = new Map(); // Store AbortController for each user
 
+// System prompt for setting the context of the bot
+const systemPrompt = {
+  role: 'system',
+  content: 'You are MGPT, a helpful and friendly assistant created by Maharshi Desai. Your task is to assist the user in a variety of conversations and provide accurate, thoughtful responses.',
+};
+
 // Chat endpoint with streaming
 app.post('/api/chat', async (req, res) => {
   const userId = req.body.userId || 'defaultUser';
@@ -28,6 +34,8 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const history = conversationHistory.get(userId);
+  // Add system prompt at the beginning of each conversation
+  history.unshift(systemPrompt); // Add system context to the history
   history.push({ role: 'user', content: userMessage });
 
   const abortController = new AbortController();
@@ -72,8 +80,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-
-
 // Endpoint to stop the response generation
 app.post('/api/stop', (req, res) => {
   const userId = req.body.userId || 'defaultUser';
@@ -87,8 +93,9 @@ app.post('/api/stop', (req, res) => {
   }
 });
 
-
 // Start the server
 app.listen(port, () => {
-  console.log(`Maharshi Chat Backend running on http://localhost:${port}`);
+  console.log('Maharshi Chat Backend running on http://localhost:' + port);
+  console.log('Bot name: MGPT');
+  console.log('Created by: Maharshi Desai');
 });
