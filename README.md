@@ -13,7 +13,7 @@
 - **Real-time Communication**: Streaming responses with **Server-Sent Events (SSE)**.
 - **Authentication & Storage**: **Firebase** for secure user authentication (in case of future updates).
 
-## 🎬 **Server Activation GIF**
+## 🎬 **Server Activation**
 ![Server Activation](https://drive.google.com/uc?export=view&id=1O-BN7yEZAZ7nA8hURXaTndlVfDsKb0yO)
 
 ## 🎨 **Features**
